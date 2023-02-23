@@ -3,17 +3,19 @@
     <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form" auto-complete="on" label-position="left">
 
       <div class="title-container">
-        <h3 class="title">Login Form</h3>
+        <h3 class="title">
+          <img src="@/assets/common/login-logo.png" alt="">
+        </h3>
       </div>
 
-      <el-form-item prop="username">
+      <el-form-item prop="mobile">
         <span class="svg-container">
           <svg-icon icon-class="user" />
         </span>
         <el-input
           ref="username"
-          v-model="loginForm.username"
-          placeholder="Username"
+          v-model="loginForm.mobile"
+          placeholder="请输入手机号"
           name="username"
           type="text"
           tabindex="1"
@@ -30,22 +32,24 @@
           ref="password"
           v-model="loginForm.password"
           :type="passwordType"
-          placeholder="Password"
+          placeholder="请输入密码"
           name="password"
           tabindex="2"
           auto-complete="on"
           @keyup.enter.native="handleLogin"
         />
+        <!-- native修饰符表示监听组件的原生事件 -->
+        <!-- 如果人家封装过的el-input组件开放了这个事件，可以不用加native，如果没有开放还想要添加这个事件，就加native -->
         <span class="show-pwd" @click="showPwd">
           <svg-icon :icon-class="passwordType === 'password' ? 'eye' : 'eye-open'" />
         </span>
       </el-form-item>
 
-      <el-button :loading="loading" type="primary" style="width:100%;margin-bottom:30px;" @click.native.prevent="handleLogin">Login</el-button>
+      <el-button class="loginBtn" :loading="loading" type="primary" style="width:100%;margin-bottom:30px;" @click.native.prevent="handleLogin">Login</el-button>
 
       <div class="tips">
-        <span style="margin-right:20px;">username: admin</span>
-        <span> password: any</span>
+        <span style="margin-right:20px;">账号: 13800000002</span>
+        <span> 密码: 123456</span>
       </div>
 
     </el-form>
@@ -53,33 +57,50 @@
 </template>
 
 <script>
-import { validUsername } from '@/utils/validate'
-
+import { validMobile } from '@/utils/validate'
+// vuex模块加了namespace，所以这里可以用辅助函数的形式引入
+import { mapActions } from 'vuex'
 export default {
   name: 'Login',
   data() {
-    const validateUsername = (rule, value, callback) => {
-      if (!validUsername(value)) {
-        callback(new Error('Please enter the correct user name'))
-      } else {
-        callback()
-      }
-    }
-    const validatePassword = (rule, value, callback) => {
-      if (value.length < 6) {
-        callback(new Error('The password can not be less than 6 digits'))
+    const validateMobile = (rule, value, callback) => {
+      // 校验成功执行callback()
+      // 校验失败叶执行callback(new Error('错误信息'))
+      if (!validMobile(value)) {
+        callback(new Error('手机号格式不正确'))
       } else {
         callback()
       }
     }
     return {
       loginForm: {
-        username: 'admin',
-        password: '111111'
+        mobile: '13800000002',
+        password: '123456'
       },
       loginRules: {
-        username: [{ required: true, trigger: 'blur', validator: validateUsername }],
-        password: [{ required: true, trigger: 'blur', validator: validatePassword }]
+        // validator 自定义函数
+        mobile: [
+          {
+            required: true,
+            trigger: 'blur',
+            message: '手机号不能为空'
+          },
+          {
+            validator: validateMobile
+          }
+        ],
+        password: [
+          {
+            required: true,
+            trigger: 'blur',
+            message: '密码不能为空'
+          },
+          {
+            min: 6,
+            max: 16,
+            message: '密码长度为6到16位'
+          }
+        ]
       },
       loading: false,
       passwordType: 'password',
@@ -95,6 +116,9 @@ export default {
     }
   },
   methods: {
+    // 全局的mapActions想要引入子模块或者加入子模块的actions，就需要加路径
+    // 引入方法
+    ...mapActions(['user/login']), // 参数传方法，方法需要传入所在的路径
     showPwd() {
       if (this.passwordType === 'password') {
         this.passwordType = ''
@@ -106,20 +130,30 @@ export default {
       })
     },
     handleLogin() {
-      this.$refs.loginForm.validate(valid => {
+      // 表单的手动校验
+      this.$refs.loginForm.validate(async valid => {
         if (valid) {
-          this.loading = true
-          this.$store.dispatch('user/login', this.loginForm).then(() => {
-            this.$router.push({ path: this.redirect || '/' })
+          try {
+            this.loading = true
+            // 只有表单校验通过了，才可以去调用action
+            // this['user/login'] 取到该方法
+            // 因为this['user/login']是异步函数，所以必须强制等待登陆成功(用await)才能去跳转主页
+            await this['user/login'](this.loginForm)
+            // await下面的代码都是登陆成功之后执行的代码
+            this.$router.push('/')
+          } catch (error) {
+            console.log(error)
+          } finally {
+            // 最后都需要关闭转圈
             this.loading = false
-          }).catch(() => {
-            this.loading = false
-          })
+          }
         } else {
           console.log('error submit!!')
           return false
         }
       })
+      // ref 可以获取一个元素的dom对象
+      // ref 作用在组件上的时候，可以获取该组件的实例
     }
   }
 }
@@ -130,7 +164,7 @@ export default {
 /* Detail see https://github.com/PanJiaChen/vue-element-admin/pull/927 */
 
 $bg:#283443;
-$light_gray:#fff;
+$light_gray:#68b0fe;
 $cursor: #fff;
 
 @supports (-webkit-mask: none) and (not (cater-color: $cursor)) {
@@ -141,6 +175,8 @@ $cursor: #fff;
 
 /* reset element-ui css */
 .login-container {
+  background-image: url(~@/assets/common/login.jpg);
+  background-position: center;
   .el-input {
     display: inline-block;
     height: 47px;
@@ -165,9 +201,21 @@ $cursor: #fff;
 
   .el-form-item {
     border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(255,
+      255,
+      255,
+      0.7);
     border-radius: 5px;
     color: #454545;
+  }
+  .el-form-item__error {
+    color: #fff
+  }
+  .loginBtn {
+    background: #407ffe;
+    height: 64px;
+    line-height: 32px;
+    font-size: 24px;
   }
 }
 </style>
