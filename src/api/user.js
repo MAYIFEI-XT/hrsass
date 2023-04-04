@@ -28,6 +28,7 @@ export function getUserDetailById(id) {
         url: `/sys/user/${id}`
     })
 }
+
 export function logout() {
 
 }
